@@ -8,7 +8,10 @@ from django.utils.encoding import smart_text
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.core.exceptions import PermissionDenied
+from django.contrib.sites.shortcuts import get_current_site
 from .compat import import_string
+
+from collections import OrderedDict
 
 from rest_framework.views import Response
 from rest_framework.settings import api_settings
@@ -178,3 +181,151 @@ class SwaggerApiView(APIDocView):
         authorized_apis = filter(lambda a: self.handle_resource_access(self.request, a['pattern']), apis)
         authorized_apis_list = list(authorized_apis)
         return authorized_apis_list
+
+
+class AWSSwaggerAPIView(APIDocView):
+    renderer_classes = (JSONRenderer, )
+
+    def get(self, request, *args, **kwargs):
+        apis = self.get_apis()
+        generator = DocumentationGenerator(for_user=request.user)
+        apis_explained = generator.generate(apis)
+        apis_models = generator.get_models(apis)
+
+        current_site = get_current_site(request)
+        scheme, host = self.get_base_path()
+
+        result = OrderedDict()
+        result['swagger'] = '2.0'
+        result['info'] = {
+                'title': current_site.name,
+                'description': current_site.domain,
+                'version': rfs.SWAGGER_SETTINGS.get('api_version', '')
+            }
+        result['host'] = host
+        result['basePath'] = '/'
+        result['securityDefinitions'] = {}
+        result['schemes'] = [
+            scheme
+        ]
+        result['paths'] = self.get_paths(apis_explained, apis_models, scheme, host)
+        result['definitions'] = self.get_definitions(apis_models)
+
+        return Response(result)
+
+    def get_apis(self):
+        urlparser = UrlParser()
+        urlconf = getattr(self.request, "urlconf", None)
+        exclude_url_names = rfs.SWAGGER_SETTINGS.get('exclude_url_names')
+        exclude_namespaces = rfs.SWAGGER_SETTINGS.get('exclude_namespaces')
+        apis = urlparser.get_apis(urlconf=urlconf, exclude_url_names=exclude_url_names,
+                                  exclude_namespaces=exclude_namespaces)
+        authorized_apis = filter(lambda a: self.handle_resource_access(self.request, a['pattern']), apis)
+        authorized_apis_list = list(authorized_apis)
+        return authorized_apis_list
+
+    def get_base_path(self):
+        try:
+            base_path = rfs.SWAGGER_SETTINGS['base_path'].rstrip('/')
+        except KeyError:
+            return self.request.build_absolute_uri(
+                self.request.path).rstrip('/')
+        else:
+            protocol = 'https' if self.request.is_secure() else 'http'
+            return protocol, base_path
+
+    def get_paths(self, apis_explained, apis_models, scheme, host):
+        paths = {}
+        for api in apis_explained:
+            path = {}
+            for method in api['operations']:
+                params = [{
+                    'name': 'Authorization',
+                    'in': 'header',
+                    'required': False,
+                    'type': 'string'
+                }]
+                aws_params = {
+                    'integration.request.header.Accept': '\'application/json\'',
+                    'integration.request.header.Authorization': 'method.request.header.Authorization'
+                }
+                for param in method['parameters']:
+                    if param['paramType'] != 'form':
+                        params.append({
+                            'name': param['name'],
+                            'in': param['paramType'],
+                            'required': param.get('required', False),
+                            'type': param['type'],
+                            'description': ''
+                        })
+                        param_type = param['paramType'] if param['paramType'] != 'query' else 'querystring'
+                        aws_params['integration.request.%s.%s' % (param_type, param['name'])] = \
+                            'method.request.%s.%s' % (param_type, param['name'])
+                response_schema = {
+                    'type': method['type']
+                }
+                if method['type'] == 'array':
+                    response_schema = {
+                        'type': 'array',
+                        'items': method['items']
+                    }
+                elif method['type'] in apis_models:
+                    response_schema = {
+                        '$ref': method['type']
+                    }
+                path_method = {
+                    'description': method['summary'],
+                    'operationId': method['nickname'],
+                    'parameters': params,
+                    'responses': {
+                        '200': {
+                            'description': '',
+                            'schema': response_schema
+                        }
+                    },
+                    'x-amazon-apigateway-integration': {
+                        'type': 'http',
+                        'uri': '%s://%s%s' % (scheme, host, api['path']),
+                        'httpMethod': method['method'].upper(),
+                        'responses': {
+                            'default': {
+                                'statusCode': '200'
+                            }
+                        },
+                        'requestParameters': aws_params
+                    }
+                }
+                path[method['method'].lower()] = path_method
+            paths[api['path']] = path
+        self.check_definitions(paths)
+        return paths
+
+    def get_definitions(self, apis_models):
+        definitions = {}
+        for key in apis_models:
+            model = apis_models[key]
+            props = {}
+            for prop_key in model['properties']:
+                props[prop_key] = model['properties'][prop_key]
+                props[prop_key]['description'] = str(props[prop_key]['description']) if props[prop_key]['description'] else ''
+                try:
+                    del props[prop_key]['required']
+                    del props[prop_key]['readOnly']
+                except:
+                    pass
+                if props[prop_key]['type'] in apis_models:
+                    props[prop_key]['$ref'] = props[prop_key]['type']
+                    del props[prop_key]['type']
+            definitions[model['id']] = {
+                'properties': model['properties']
+            }
+        self.check_definitions(definitions)
+        return definitions
+
+    def check_definitions(self, dictionary):
+        for key in dictionary:
+            if key == '$ref':
+                if not dictionary[key].startswith('#'):
+                    dictionary[key] = '#/definitions/%s' % dictionary[key]
+            elif type(dictionary[key]) in [dict, OrderedDict]:
+                self.check_definitions(dictionary[key])
