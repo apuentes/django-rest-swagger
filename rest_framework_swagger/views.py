@@ -230,7 +230,9 @@ class AWSSwaggerAPIView(APIDocView):
         except KeyError:
             base_path = self.request.build_absolute_uri(
                 self.request.path).rstrip('/')
-            return tuple(base_path.split('://'))
+            protocol, base_path = base_path.split('://')
+            base_path = base_path.split('/', 1)[0]
+            return protocol, base_path
         else:
             protocol = 'https' if self.request.is_secure() else 'http'
             return protocol, base_path
