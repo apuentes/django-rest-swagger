@@ -198,10 +198,10 @@ class AWSSwaggerAPIView(APIDocView):
         result = OrderedDict()
         result['swagger'] = '2.0'
         result['info'] = {
-                'title': current_site.name,
-                'description': current_site.domain,
-                'version': rfs.SWAGGER_SETTINGS.get('api_version', '')
-            }
+            'title': current_site.name,
+            'description': current_site.domain,
+            'version': rfs.SWAGGER_SETTINGS.get('api_version', '')
+        }
         result['host'] = host
         result['basePath'] = '/'
         result['securityDefinitions'] = {}
