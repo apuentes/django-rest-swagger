@@ -191,6 +191,7 @@ class AWSSwaggerAPIView(APIDocView):
         generator = DocumentationGenerator(for_user=request.user)
         apis_explained = generator.generate(apis)
         apis_models = generator.get_models(apis)
+        with_cors = request.REQUEST.get('cors', False)
 
         current_site = get_current_site(request)
         scheme, host = self.get_base_path()
@@ -208,8 +209,8 @@ class AWSSwaggerAPIView(APIDocView):
         result['schemes'] = [
             scheme
         ]
-        result['paths'] = self.get_paths(apis_explained, apis_models, scheme, host)
-        result['definitions'] = self.get_definitions(apis_models)
+        result['paths'] = self.get_paths(apis_explained, apis_models, scheme, host, with_cors)
+        result['definitions'] = self.get_definitions(apis_models, with_cors)
 
         return Response(result)
 
@@ -237,7 +238,7 @@ class AWSSwaggerAPIView(APIDocView):
             protocol = 'https' if self.request.is_secure() else 'http'
             return protocol, base_path
 
-    def get_paths(self, apis_explained, apis_models, scheme, host):
+    def get_paths(self, apis_explained, apis_models, scheme, host, with_cors=False):
         paths = {}
         for api in apis_explained:
             path = {}
@@ -299,11 +300,49 @@ class AWSSwaggerAPIView(APIDocView):
                     }
                 }
                 path[method['method'].lower()] = path_method
+            if with_cors:
+                path['options'] = {
+                    'responses': {
+                        '200': {
+                            'description': '200 response',
+                            'schema': {
+                                '$ref': '#/definitions/Empty'
+                            },
+                            'headers': {
+                                'Access-Control-Allow-Origin': {
+                                    'type': 'string'
+                                },
+                                'Access-Control-Allow-Methods': {
+                                    'type': 'string'
+                                },
+                                'Access-Control-Allow-Headers': {
+                                    'type': 'string'
+                                }
+                            }
+                        }
+                    },
+                    'x-amazon-apigateway-integration': {
+                        'responses': {
+                            'default': {
+                                'statusCode": "200",
+                                'responseParameters": {
+                                    'method.response.header.Access-Control-Allow-Methods': '\'%s\'' % ','.join(api['operations'].keys()),
+                                    'method.response.header.Access-Control-Allow-Headers': '\'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token\'',
+                                    'method.response.header.Access-Control-Allow-Origin': '\'*\''
+                                }
+                            }
+                        },
+                        'requestTemplates': {
+                            'application/json': '{"statusCode": 200}'
+                        },
+                        'type': 'mock'
+                    }
+                }
             paths[api['path']] = path
         self.check_definitions(paths)
         return paths
 
-    def get_definitions(self, apis_models):
+    def get_definitions(self, apis_models, with_cors=False):
         definitions = {}
         for key in apis_models:
             model = apis_models[key]
@@ -321,6 +360,10 @@ class AWSSwaggerAPIView(APIDocView):
                     del props[prop_key]['type']
             definitions[model['id']] = {
                 'properties': model['properties']
+            }
+        if with_cors:
+            definitions['Empty'] = {
+                'type': 'object'
             }
         self.check_definitions(definitions)
         return definitions
