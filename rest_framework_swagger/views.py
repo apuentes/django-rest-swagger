@@ -300,6 +300,10 @@ class AWSSwaggerAPIView(APIDocView):
                         'requestParameters': aws_params
                     }
                 }
+                if with_cors:
+                    path_method['x-amazon-apigateway-integration']['responses']['default']['responseParameters'] = {
+                        'method.response.header.Access-Control-Allow-Origin': '\'*\''
+                    }
                 method_list.append(method['method'])
                 path[method['method'].lower()] = path_method
             if with_cors:
