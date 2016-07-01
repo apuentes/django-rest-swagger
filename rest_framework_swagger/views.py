@@ -242,6 +242,7 @@ class AWSSwaggerAPIView(APIDocView):
         paths = {}
         for api in apis_explained:
             path = {}
+            method_list = []
             for method in api['operations']:
                 params = [{
                     'name': 'Authorization',
@@ -299,6 +300,7 @@ class AWSSwaggerAPIView(APIDocView):
                         'requestParameters': aws_params
                     }
                 }
+                method_list.append(method['method'])
                 path[method['method'].lower()] = path_method
             if with_cors:
                 path['options'] = {
@@ -326,7 +328,7 @@ class AWSSwaggerAPIView(APIDocView):
                             'default': {
                                 'statusCode': '200',
                                 'responseParameters': {
-                                    'method.response.header.Access-Control-Allow-Methods': '\'%s\'' % ','.join(api['operations']),
+                                    'method.response.header.Access-Control-Allow-Methods': '\'%s\'' % ','.join(method_list),
                                     'method.response.header.Access-Control-Allow-Headers': '\'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token\'',
                                     'method.response.header.Access-Control-Allow-Origin': '\'*\''
                                 }
