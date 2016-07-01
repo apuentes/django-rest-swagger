@@ -326,7 +326,7 @@ class AWSSwaggerAPIView(APIDocView):
                             'default': {
                                 'statusCode': '200',
                                 'responseParameters': {
-                                    'method.response.header.Access-Control-Allow-Methods': '\'%s\'' % ','.join(api['operations'].keys()),
+                                    'method.response.header.Access-Control-Allow-Methods': '\'%s\'' % ','.join(api['operations']),
                                     'method.response.header.Access-Control-Allow-Headers': '\'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token\'',
                                     'method.response.header.Access-Control-Allow-Origin': '\'*\''
                                 }
