@@ -301,6 +301,11 @@ class AWSSwaggerAPIView(APIDocView):
                     }
                 }
                 if with_cors:
+                    path_method['responses']['200']['headers'] = {
+                        'Access-Control-Allow-Origin': {
+                            'type': 'string'
+                        }
+                    }
                     path_method['x-amazon-apigateway-integration']['responses']['default']['responseParameters'] = {
                         'method.response.header.Access-Control-Allow-Origin': '\'*\''
                     }
