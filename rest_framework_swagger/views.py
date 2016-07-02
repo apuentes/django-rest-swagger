@@ -286,6 +286,7 @@ class AWSSwaggerAPIView(APIDocView):
                         definition['properties'][name] = prop
                 if definition['properties']:
                     definition_name = '%sBody' % method['nickname']
+                    definition_name = definition_name.replace('_', '')
                     definitions[definition_name] = definition
                     params.append({
                         'in': 'body',
