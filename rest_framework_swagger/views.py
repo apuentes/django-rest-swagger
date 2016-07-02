@@ -209,8 +209,8 @@ class AWSSwaggerAPIView(APIDocView):
         result['schemes'] = [
             scheme
         ]
-        result['paths'] = self.get_paths(apis_explained, apis_models, scheme, host, with_cors)
-        result['definitions'] = self.get_definitions(apis_models, with_cors)
+        result['paths'], definitions = self.get_paths(apis_explained, apis_models, scheme, host, with_cors)
+        result['definitions'] = self.get_definitions(apis_models, definitions, with_cors)
 
         return Response(result)
 
@@ -239,6 +239,7 @@ class AWSSwaggerAPIView(APIDocView):
             return protocol, base_path
 
     def get_paths(self, apis_explained, apis_models, scheme, host, with_cors=False):
+        definitions = {}
         paths = {}
         for api in apis_explained:
             path = {}
@@ -254,6 +255,9 @@ class AWSSwaggerAPIView(APIDocView):
                     'integration.request.header.Accept': '\'application/json\'',
                     'integration.request.header.Authorization': 'method.request.header.Authorization'
                 }
+                definition = {
+                    'properties': {}
+                }
                 for param in method['parameters']:
                     if param['paramType'] != 'form':
                         params.append({
@@ -266,6 +270,31 @@ class AWSSwaggerAPIView(APIDocView):
                         param_type = param['paramType'] if param['paramType'] != 'query' else 'querystring'
                         aws_params['integration.request.%s.%s' % (param_type, param['name'])] = \
                             'method.request.%s.%s' % (param_type, param['name'])
+                    else:
+                        prop = param
+                        name = prop['name']
+                        prop['description'] = str(prop['description']) if prop['description'] else ''
+                        try:
+                            del prop['name']
+                            del prop['required']
+                            del prop['readOnly']
+                        except:
+                            pass
+                        if prop['type'] in apis_models:
+                            prop['$ref'] = prop['type']
+                            del prop['type']
+                        definition['properties'][name] = prop
+                if definition['properties']:
+                    definition_name = '%sBody' % method['nickname']
+                    definitions[definition_name] = definition
+                    params.append({
+                        'in': 'body',
+                        'name': definition_name,
+                        'required': True,
+                        'schema': {
+                          '$ref': '#/definitions/%s' % definition_name
+                        }
+                    })
                 response_schema = {
                     'type': method['type']
                 }
@@ -351,10 +380,11 @@ class AWSSwaggerAPIView(APIDocView):
                 }
             paths[api['path']] = path
         self.check_definitions(paths)
-        return paths
+        return paths, definitions
 
-    def get_definitions(self, apis_models, with_cors=False):
-        definitions = {}
+    def get_definitions(self, apis_models, definitions=None, with_cors=False):
+        if not definitions:
+            definitions = {}
         for key in apis_models:
             model = apis_models[key]
             props = {}
