@@ -293,7 +293,7 @@ class AWSSwaggerAPIView(APIDocView):
                         'name': definition_name,
                         'required': True,
                         'schema': {
-                          '$ref': '#/definitions/%s' % definition_name
+                            '$ref': '#/definitions/%s' % definition_name
                         }
                     })
                 response_schema = {
@@ -316,6 +316,12 @@ class AWSSwaggerAPIView(APIDocView):
                         '200': {
                             'description': '',
                             'schema': response_schema
+                        },
+                        '400': {
+                            'description': ''
+                        },
+                        '405': {
+                            'description': ''
                         }
                     },
                     'x-amazon-apigateway-integration': {
@@ -325,6 +331,12 @@ class AWSSwaggerAPIView(APIDocView):
                         'responses': {
                             'default': {
                                 'statusCode': '200'
+                            },
+                            '400': {
+                                'statusCode': '400'
+                            },
+                            '405': {
+                                'statusCode': '405'
                             }
                         },
                         'requestParameters': aws_params
@@ -336,7 +348,23 @@ class AWSSwaggerAPIView(APIDocView):
                             'type': 'string'
                         }
                     }
+                    path_method['responses']['400']['headers'] = {
+                        'Access-Control-Allow-Origin': {
+                            'type': 'string'
+                        }
+                    }
+                    path_method['responses']['405']['headers'] = {
+                        'Access-Control-Allow-Origin': {
+                            'type': 'string'
+                        }
+                    }
                     path_method['x-amazon-apigateway-integration']['responses']['default']['responseParameters'] = {
+                        'method.response.header.Access-Control-Allow-Origin': '\'*\''
+                    }
+                    path_method['x-amazon-apigateway-integration']['responses']['400']['responseParameters'] = {
+                        'method.response.header.Access-Control-Allow-Origin': '\'*\''
+                    }
+                    path_method['x-amazon-apigateway-integration']['responses']['405']['responseParameters'] = {
                         'method.response.header.Access-Control-Allow-Origin': '\'*\''
                     }
                 method_list.append(method['method'])
@@ -367,8 +395,10 @@ class AWSSwaggerAPIView(APIDocView):
                             'default': {
                                 'statusCode': '200',
                                 'responseParameters': {
-                                    'method.response.header.Access-Control-Allow-Methods': '\'%s\'' % ','.join(method_list),
-                                    'method.response.header.Access-Control-Allow-Headers': '\'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token\'',
+                                    'method.response.header.Access-Control-Allow-Methods':
+                                        '\'%s\'' % ','.join(method_list),
+                                    'method.response.header.Access-Control-Allow-Headers':
+                                        '\'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token\'',
                                     'method.response.header.Access-Control-Allow-Origin': '\'*\''
                                 }
                             }
