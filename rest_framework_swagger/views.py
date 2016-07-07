@@ -317,6 +317,12 @@ class AWSSwaggerAPIView(APIDocView):
                             'description': '',
                             'schema': response_schema
                         },
+                        '201': {
+                            'description': ''
+                        },
+                        '204': {
+                            'description': ''
+                        },
                         '400': {
                             'description': ''
                         },
@@ -331,6 +337,12 @@ class AWSSwaggerAPIView(APIDocView):
                         'responses': {
                             'default': {
                                 'statusCode': '200'
+                            },
+                            '201': {
+                                'statusCode': '201'
+                            },
+                            '204': {
+                                'statusCode': '204'
                             },
                             '400': {
                                 'statusCode': '400'
@@ -348,6 +360,16 @@ class AWSSwaggerAPIView(APIDocView):
                             'type': 'string'
                         }
                     }
+                    path_method['responses']['201']['headers'] = {
+                        'Access-Control-Allow-Origin': {
+                            'type': 'string'
+                        }
+                    }
+                    path_method['responses']['204']['headers'] = {
+                        'Access-Control-Allow-Origin': {
+                            'type': 'string'
+                        }
+                    }
                     path_method['responses']['400']['headers'] = {
                         'Access-Control-Allow-Origin': {
                             'type': 'string'
@@ -359,6 +381,12 @@ class AWSSwaggerAPIView(APIDocView):
                         }
                     }
                     path_method['x-amazon-apigateway-integration']['responses']['default']['responseParameters'] = {
+                        'method.response.header.Access-Control-Allow-Origin': '\'*\''
+                    }
+                    path_method['x-amazon-apigateway-integration']['responses']['201']['responseParameters'] = {
+                        'method.response.header.Access-Control-Allow-Origin': '\'*\''
+                    }
+                    path_method['x-amazon-apigateway-integration']['responses']['204']['responseParameters'] = {
                         'method.response.header.Access-Control-Allow-Origin': '\'*\''
                     }
                     path_method['x-amazon-apigateway-integration']['responses']['400']['responseParameters'] = {
@@ -427,7 +455,7 @@ class AWSSwaggerAPIView(APIDocView):
                     del props[prop_key]['readOnly']
                 except:
                     pass
-                if props[prop_key]['type'] in apis_models:
+                if 'type' in props[prop_key] and props[prop_key]['type'] in apis_models:
                     props[prop_key]['$ref'] = props[prop_key]['type']
                     del props[prop_key]['type']
             definitions[model['id']] = {
