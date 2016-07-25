@@ -320,6 +320,9 @@ class AWSSwaggerAPIView(APIDocView):
                         '400': {
                             'description': ''
                         },
+                        '401': {
+                            'description': ''
+                        },
                         '405': {
                             'description': ''
                         }
@@ -334,6 +337,9 @@ class AWSSwaggerAPIView(APIDocView):
                             },
                             '400': {
                                 'statusCode': '400'
+                            },
+                            '401': {
+                                'statusCode': '401'
                             },
                             '405': {
                                 'statusCode': '405'
@@ -353,6 +359,11 @@ class AWSSwaggerAPIView(APIDocView):
                             'type': 'string'
                         }
                     }
+                    path_method['responses']['401']['headers'] = {
+                        'Access-Control-Allow-Origin': {
+                            'type': 'string'
+                        }
+                    }
                     path_method['responses']['405']['headers'] = {
                         'Access-Control-Allow-Origin': {
                             'type': 'string'
@@ -362,6 +373,9 @@ class AWSSwaggerAPIView(APIDocView):
                         'method.response.header.Access-Control-Allow-Origin': '\'*\''
                     }
                     path_method['x-amazon-apigateway-integration']['responses']['400']['responseParameters'] = {
+                        'method.response.header.Access-Control-Allow-Origin': '\'*\''
+                    }
+                    path_method['x-amazon-apigateway-integration']['responses']['401']['responseParameters'] = {
                         'method.response.header.Access-Control-Allow-Origin': '\'*\''
                     }
                     path_method['x-amazon-apigateway-integration']['responses']['405']['responseParameters'] = {
